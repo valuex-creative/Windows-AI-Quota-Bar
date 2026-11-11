@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -113,14 +113,17 @@ public static class AntigravityAccounts
 
     static async Task<JsonElement> RefreshWithDiscoveredClient(string refreshToken, CancellationToken ct)
     {
-        var candidates = new List<(string id, string secret)>();
-        if (SecretStore.Get("antigravity:oauthclient") is { } cached && cached.Split('\n') is [var cid, var csec])
-            candidates.Add((cid, csec));
-        candidates.AddRange(DiscoverClients().Where(c => !candidates.Contains(c)));
-        if (candidates.Count == 0) throw new InvalidOperationException("Antigravity (agy) is not installed, so the token cannot be refreshed. Run `agy` once.");
-
-        foreach (var (id, secret) in candidates)
+        // The stored client first; the installed binaries are searched only when it is missing or rejected.
+        IEnumerable<(string id, string secret)> Candidates()
         {
+            (string, string)? stored = SecretStore.Get("antigravity:oauthclient") is { } cached && cached.Split('\n') is [var cid, var csec] ? (cid, csec) : null;
+            if (stored is { } st) yield return st;
+            foreach (var c in DiscoverClients()) if (c != stored) yield return c;
+        }
+        var tried = 0;
+        foreach (var (id, secret) in Candidates())
+        {
+            tried++;
             var req = new HttpRequestMessage(HttpMethod.Post, "https://oauth2.googleapis.com/token")
             {
                 Content = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -136,32 +139,60 @@ public static class AntigravityAccounts
             }
             catch (Http.HttpError e) when (e.Code is 400 or 401) { /* wrong pair or revoked; try next */ }
         }
+        if (tried == 0) throw new InvalidOperationException("Antigravity (agy) is not installed, so the token cannot be refreshed. Run `agy` once.");
         throw new InvalidOperationException("Antigravity sign-in expired. Switch to this account and run `agy` to sign in again.");
     }
 
-    static IEnumerable<(string, string)> DiscoverClients()
-    {
-        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var files = new List<string>();
-        if (AgyPath() is { } agy) files.Add(agy);
-        var ide = Path.Combine(local, "Programs", "Antigravity");
-        if (Directory.Exists(ide))
-            files.AddRange(Directory.EnumerateFiles(ide, "language_server*.exe", SearchOption.AllDirectories));
+    static readonly object DiscoverLock = new();
+    static List<(string, string)>? _discovered;
+    static DateTime _discoveredAt;
+    static readonly Regex IdRx = new(@"\d{6,}-[a-z0-9]{20,}\.apps\.googleusercontent\.com", RegexOptions.Compiled);
+    static readonly Regex SecretRx = new(@"GOCSPX-[A-Za-z0-9_\-]{28}", RegexOptions.Compiled);
 
-        var ids = new List<string>(); var secrets = new List<string>();
-        foreach (var f in files)
+    /// <summary>OAuth client pairs found inside the installed agy / Antigravity binaries (kept for an hour).</summary>
+    static List<(string, string)> DiscoverClients()
+    {
+        lock (DiscoverLock)
         {
+            if (_discovered != null && DateTime.UtcNow - _discoveredAt < TimeSpan.FromHours(1)) return _discovered;
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var files = new List<string>();
+            if (AgyPath() is { } agy) files.Add(agy);
+            var ide = Path.Combine(local, "Programs", "Antigravity");
             try
             {
-                var text = Encoding.Latin1.GetString(File.ReadAllBytes(f));
-                ids.AddRange(Regex.Matches(text, @"\d{6,}-[a-z0-9]{20,}\.apps\.googleusercontent\.com").Select(m => m.Value));
-                secrets.AddRange(Regex.Matches(text, @"GOCSPX-[A-Za-z0-9_\-]{28}").Select(m => m.Value));
+                if (Directory.Exists(ide))
+                    files.AddRange(Directory.EnumerateFiles(ide, "language_server*.exe", SearchOption.AllDirectories));
             }
             catch { }
+
+            var ids = new HashSet<string>(); var secrets = new HashSet<string>();
+            foreach (var f in files)
+            {
+                try { ScanFile(f, ids, secrets); } catch { }
+            }
+            _discovered = (from id in ids from s in secrets select (id, s)).ToList();
+            _discoveredAt = DateTime.UtcNow;
+            return _discovered;
         }
-        foreach (var id in ids.Distinct())
-            foreach (var s in secrets.Distinct())
-                yield return (id, s);
+    }
+
+    /// <summary>Searches a binary in 1 MB pieces. These files are hundreds of MB: never load one whole.</summary>
+    public static void ScanFile(string path, HashSet<string> ids, HashSet<string> secrets)
+    {
+        const int Chunk = 1 << 20, Overlap = 256; // overlap > the longest match, so one split across pieces is still found
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+        var buf = new byte[Chunk + Overlap];
+        int keep = 0, n;
+        while ((n = fs.Read(buf, keep, Chunk)) > 0)
+        {
+            var text = Encoding.Latin1.GetString(buf, 0, keep + n);
+            foreach (Match m in IdRx.Matches(text)) ids.Add(m.Value);
+            foreach (Match m in SecretRx.Matches(text)) secrets.Add(m.Value);
+            var total = keep + n;
+            keep = Math.Min(Overlap, total);
+            Buffer.BlockCopy(buf, total - keep, buf, 0, keep);
+        }
     }
 }
 
