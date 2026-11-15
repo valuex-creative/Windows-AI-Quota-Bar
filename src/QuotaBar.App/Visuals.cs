@@ -21,6 +21,7 @@ public static class Visuals
         "deepseek" => Color.FromRgb(0x4D, 0x6B, 0xFE),
         "moonshot" => Color.FromRgb(0x2B, 0x2F, 0x3A),
         "opencode-go" => Theme.Dark ? Color.FromRgb(0x8E, 0x9B, 0xFF) : Color.FromRgb(0x4F, 0x5B, 0xD5),
+        "cursor" => Theme.Dark ? Color.FromRgb(0xD4, 0xD8, 0xE2) : Color.FromRgb(0x27, 0x2A, 0x34),
         _ => Color.FromRgb(0x88, 0x88, 0x88),
     };
 
@@ -93,7 +94,7 @@ public static class Visuals
 
     static readonly Dictionary<string, string> IconFiles = new()
     {
-        ["claude"] = "claude.svg", ["codex"] = "codex.svg", ["opencode-go"] = "opencode.svg",
+        ["claude"] = "claude.svg", ["codex"] = "codex.svg", ["opencode-go"] = "opencode.svg", ["cursor"] = "cursor.svg",
         ["openrouter"] = "openrouter.svg", ["copilot"] = "github.svg", ["zai"] = "zdotai.svg", ["kimi"] = "kimi.svg",
         ["minimax"] = "minimax.svg", ["deepseek"] = "deepseek.svg", ["moonshot"] = "moonshot.svg",
     };
