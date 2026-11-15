@@ -18,6 +18,8 @@ public static class SettingsPage
     static string? _addStatus;        // last test result shown under the form
     static bool _addBusy;
     static bool _showGoKeyForm;
+    static CancellationTokenSource? _cursorLoginCts;
+    static string? _cursorLoginStatus;
 
     public static UIElement Build(PanelWindow panel)
     {
@@ -298,6 +300,20 @@ public static class SettingsPage
                 return null;
             }, panel));
 
+        // Cursor
+        Sep();
+        var cursor = Snap("cursor");
+        var hasCursor = App.Demo || CursorProvider.HasSession;
+        var cursorStatus = _cursorLoginCts != null
+            ? L.T("Waiting for sign-in in browser…", "Tarayıcıda giriş bekleniyor…")
+            : _cursorLoginStatus ?? StatusText(cursor, hasCursor ? null : L.T("Not signed in", "Giriş yapılmadı"));
+        var cursorActions = _cursorLoginCts != null
+            ? Buttons(Visuals.Chip(L.T("Cancel", "İptal"), () => CancelCursorLogin(panel)))
+            : hasCursor
+                ? Buttons(Visuals.Chip(L.T("Sign out", "Çıkış"), () => { CursorProvider.SignOut(); _cursorLoginStatus = null; _ = app.RefreshAsync("cursor"); panel.Navigate("settings"); }))
+                : Buttons(Visuals.Chip(L.T("Sign in", "Giriş yap"), () => StartCursorLogin(panel), primary: true));
+        card.Children.Add(AccountRow("cursor", "Cursor", cursorStatus, cursor, cursorActions, "cursor"));
+
         // API-key accounts
         foreach (var k in s.KeyAccounts.ToList())
         {
@@ -399,6 +415,70 @@ public static class SettingsPage
         t.Start();
     }
 
+    public static void StartCursorLogin(PanelWindow panel)
+    {
+        var (verifier, _, uuid, url) = CursorProvider.StartLogin();
+        var oldCts = _cursorLoginCts;
+        var cts = new CancellationTokenSource();
+        _cursorLoginCts = cts;
+        _cursorLoginStatus = null;
+        oldCts?.Cancel();
+        App.OpenUrl(url);
+        panel.Navigate("settings");
+        _ = PollCursorLoginAsync(uuid, verifier, cts, panel);
+    }
+
+    static void CancelCursorLogin(PanelWindow panel)
+    {
+        var cts = _cursorLoginCts;
+        _cursorLoginCts = null;
+        cts?.Cancel();
+        panel.Navigate("settings");
+    }
+
+    static async Task PollCursorLoginAsync(string uuid, string verifier, CancellationTokenSource cts, PanelWindow panel)
+    {
+        try
+        {
+            var ok = await Task.Run(() => CursorProvider.PollLoginAsync(uuid, verifier, cts.Token));
+            if (!ReferenceEquals(_cursorLoginCts, cts)) return;
+            _cursorLoginCts = null;
+            if (ok)
+            {
+                _cursorLoginStatus = null;
+                if (panel.CurrentPage == "settings") panel.Navigate("settings");
+                await App.Instance.RefreshAsync("cursor");
+                if (panel.CurrentPage == "settings") panel.Navigate("settings");
+            }
+            else
+            {
+                _cursorLoginStatus = L.T("Sign-in timed out. Try again.", "Giriş zaman aşımına uğradı. Tekrar dene.");
+                if (panel.CurrentPage == "settings") panel.Navigate("settings");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            if (ReferenceEquals(_cursorLoginCts, cts))
+            {
+                _cursorLoginCts = null;
+                if (panel.CurrentPage == "settings") panel.Navigate("settings");
+            }
+        }
+        catch (Exception e)
+        {
+            if (ReferenceEquals(_cursorLoginCts, cts))
+            {
+                _cursorLoginCts = null;
+                _cursorLoginStatus = e.Message;
+                if (panel.CurrentPage == "settings") panel.Navigate("settings");
+            }
+        }
+        finally
+        {
+            cts.Dispose();
+        }
+    }
+
     // =====================================================================================================
     // Add a provider
     // =====================================================================================================
@@ -467,7 +547,7 @@ public static class SettingsPage
         }
 
         var more = new TextBlock { Margin = new Thickness(0, 10, 0, 0), FontSize = 12, Foreground = Theme.SubText, TextWrapping = TextWrapping.Wrap };
-        more.Inlines.Add(L.T("Missing one (Cursor, Windsurf, Augment…)? ", "Eksik mi (Cursor, Windsurf, Augment…)? "));
+        more.Inlines.Add(L.T("Missing one (Windsurf, Augment…)? ", "Eksik mi (Windsurf, Augment…)? "));
         var link = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(L.T("Request it on GitHub", "GitHub'da iste"))) { Foreground = Theme.Accent };
         link.Click += (_, _) => App.OpenUrl(RepoUrl + "/issues/new?title=Provider%20request%3A%20");
         more.Inlines.Add(link);

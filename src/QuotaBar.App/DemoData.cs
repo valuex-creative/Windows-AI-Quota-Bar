@@ -85,6 +85,12 @@ public static class DemoData
                 },
                 new ProviderSnapshot
                 {
+                    Id = "cursor", ProviderKind = "cursor", DisplayName = "Cursor", Account = "you@example.com", Plan = "Plus",
+                    DashboardUrl = "https://cursor.com/dashboard?tab=usage", StatusUrl = "https://status.cursor.com",
+                    Windows = { W("weekly", "Weekly", 40, TimeSpan.FromDays(4.8), D7) },
+                },
+                new ProviderSnapshot
+                {
                     Id = "openrouter:demo0openrtr", ProviderKind = "openrouter", DisplayName = "OpenRouter", Account = "OpenRouter",
                     DashboardUrl = "https://openrouter.ai/activity",
                     Windows = { new UsageWindow { Key = "credits", Label = "Credits", UsedPercent = 36, Detail = "$12.80 of $20 left" } },

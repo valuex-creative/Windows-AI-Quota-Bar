@@ -4,7 +4,7 @@ namespace QuotaBar.Core;
 
 public interface IUsageProvider
 {
-    /// <summary>"claude", "codex", "antigravity", "opencode-go".</summary>
+    /// <summary>"claude", "codex", "antigravity", "opencode-go", "cursor".</summary>
     string Kind { get; }
     string Name { get; }
     /// <summary>A provider may return several snapshots (one per account).</summary>
@@ -19,10 +19,11 @@ public sealed class UsageService
         new CodexProvider(),
         new AntigravityProvider(),
         new OpenCodeGoProvider(),
+        new CursorProvider(),
     }.Concat(KeyProviders.Catalog.Select(d => (IUsageProvider)new KeyAccountsProvider(d))).ToList();
 
     /// <summary>Providers that are always shown (they discover their login automatically).</summary>
-    public static readonly string[] BuiltIn = { "claude", "codex", "antigravity", "opencode-go" };
+    public static readonly string[] BuiltIn = { "claude", "codex", "antigravity", "opencode-go", "cursor" };
 
     public async Task<UsageReport> RefreshAsync(AppSettings settings, string? onlyKind = null, CancellationToken ct = default)
     {
