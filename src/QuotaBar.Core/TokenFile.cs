@@ -43,11 +43,14 @@ public static class TokenFile
     }
 
     /// <summary>Cross-process lock between our own processes (lock file in our data folder, not next to the CLI's file).</summary>
-    static async Task<FileStream> AcquireLock(string path, CancellationToken ct)
+    static Task<FileStream> AcquireLock(string path, CancellationToken ct) => LockAsync(Path.GetFullPath(path).ToLowerInvariant(), ct);
+
+    /// <summary>Cross-process lock between the app and qb.exe for any named resource, e.g. a stored secret.</summary>
+    public static async Task<FileStream> LockAsync(string key, CancellationToken ct)
     {
         var dir = Path.Combine(AppPaths.Data, "locks");
         Directory.CreateDirectory(dir);
-        var name = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(path).ToLowerInvariant())))[..16];
+        var name = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
         var lockPath = Path.Combine(dir, name + ".lock");
         var deadline = DateTime.UtcNow.AddSeconds(30);
         while (true)

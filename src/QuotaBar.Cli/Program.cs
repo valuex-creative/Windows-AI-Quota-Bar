@@ -69,7 +69,7 @@ try
             Console.WriteLine("""
                 QuotaBar CLI — AI subscription usage on Windows
 
-                  qb [status] [provider] [--json] [--cached]   Show usage (claude, codex, antigravity, opencode)
+                  qb [status] [provider] [--json] [--cached]   Show usage (claude, codex, antigravity, opencode, cursor)
                   qb accounts                                  List Antigravity accounts (* = active)
                   qb switch <email>                            Switch the active Antigravity account
                   qb mcp                                       Run as an MCP server (stdio) for Claude Code etc.
@@ -198,7 +198,7 @@ static class Mcp
                     ["protocolVersion"] = p?["protocolVersion"]?.GetValue<string>() ?? "2025-06-18",
                     ["capabilities"] = new JsonObject { ["tools"] = new JsonObject() },
                     ["serverInfo"] = new JsonObject { ["name"] = "quotabar", ["version"] = Updates.Current.ToString(3) },
-                    ["instructions"] = "Windows AI Quota Bar reports remaining usage of the user's AI subscriptions (Claude, Codex/ChatGPT, Google Antigravity accounts, OpenCode Go). Use get_usage when the user asks how much quota/limit/usage is left.",
+                    ["instructions"] = "Windows AI Quota Bar reports remaining usage of the user's AI subscriptions (Claude, Codex/ChatGPT, Google Antigravity accounts, OpenCode Go, Cursor). Use get_usage when the user asks how much quota/limit/usage is left.",
                 };
             case "ping":
                 return new JsonObject();
@@ -209,10 +209,10 @@ static class Mcp
                         new JsonObject
                         {
                             ["name"] = "get_usage",
-                            ["description"] = "Live remaining usage for the user's AI subscriptions: percent left per window (5-hour session, weekly, monthly, per-model), reset times and pace. Optional provider filter: claude, codex, antigravity, opencode-go.",
+                            ["description"] = "Live remaining usage for the user's AI subscriptions: percent left per window (5-hour session, weekly, monthly, per-model), reset times and pace. Optional provider filter: claude, codex, antigravity, opencode-go, cursor.",
                             ["inputSchema"] = Schema(new JsonObject
                             {
-                                ["provider"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("claude", "codex", "antigravity", "opencode-go") },
+                                ["provider"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("claude", "codex", "antigravity", "opencode-go", "cursor") },
                                 ["cached"] = new JsonObject { ["type"] = "boolean", ["description"] = "Use the last snapshot from the Windows AI Quota Bar app instead of fetching live." },
                             }),
                             ["annotations"] = ReadOnly(),

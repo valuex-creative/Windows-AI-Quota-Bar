@@ -15,6 +15,7 @@ public sealed class PanelWindow : Window
 {
     string _page = "overview";
     bool _pinned;
+    public string CurrentPage => _page;
     public bool JustHidden { get; private set; }
 
     readonly Grid _root = new();
@@ -461,6 +462,8 @@ public sealed class PanelWindow : Window
                 sp.Children.Add(Wrap(Visuals.Chip(L.T("Sign in to claude.ai", "claude.ai'ye giriş yap"), () => ClaudeLoginWindow.Open(), primary: true)));
             if (p.ProviderKind == "codex" && p.Status == ProviderStatus.NeedsLogin)
                 sp.Children.Add(Wrap(Visuals.Chip(L.T("Run codex login", "codex login çalıştır"), () => RunInTerminal("codex login"), primary: true)));
+            if (p.ProviderKind == "cursor" && p.Status == ProviderStatus.NeedsLogin)
+                sp.Children.Add(Wrap(Visuals.Chip(L.T("Sign in", "Giriş yap"), () => SettingsPage.StartCursorLogin(this), primary: true)));
         }
 
         if (p.Status == ProviderStatus.Ok && p.Windows.Count > 0)

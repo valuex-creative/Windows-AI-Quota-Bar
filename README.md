@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Every AI coding subscription limit, live on your Windows taskbar.</b><br>
-  Claude · Codex / ChatGPT · Google Antigravity (multi-account) · OpenCode Go · OpenRouter · Copilot · and more
+  Claude · Codex / ChatGPT · Cursor · Google Antigravity (multi-account) · OpenCode Go · OpenRouter · Copilot · and more
 </p>
 
 <p align="center">
@@ -110,6 +110,7 @@ Windows 11 Mica, rounded corners, follows light and dark mode. The widget comes 
 | <img src="docs/icons/codex.svg" width="18"> | **Codex / ChatGPT** (Plus / Pro) | 5-hour session, weekly, credits | `codex login` |
 | <img src="docs/icons/antigravity.png" width="18"> | **Google Antigravity** | Gemini Pro, Gemini Flash, Claude, GPT-OSS, Image quotas, per account | `agy` CLI login |
 | <img src="docs/icons/opencode.svg" width="18"> | **OpenCode Go** | 5-hour, weekly, monthly | Keys saved by OpenCode, or added in Settings |
+| <img src="docs/icons/cursor.svg" width="18"> | **Cursor** (Pro / Plus / Ultra) | Weekly or monthly included usage | Sign in to cursor.com in your browser |
 | <img src="docs/icons/openrouter.svg" width="18"> | **OpenRouter** | Credits, key limit, daily / weekly / monthly spend | API key |
 | <img src="docs/icons/github.svg" width="18"> | **GitHub Copilot** <sup>beta</sup> | Premium requests, chat quota | `gh auth token` (auto-detected) |
 | <img src="docs/icons/zdotai.svg" width="18"> | **z.ai GLM Coding** <sup>beta</sup> | 5-hour prompts, monthly tool calls | API key |
@@ -181,6 +182,7 @@ qb config export backup.json   # settings backup without API keys; `qb config im
 
 - **No telemetry, no server of its own.** The app only talks to each provider's own API, and to GitHub to check for updates (you can turn that off).
 - **It reads the logins your tools already keep on this PC.** It writes to another tool's login file only when that tool's token has expired. The refresh is locked, conflict-checked and atomic, so it cannot break a refresh the CLI is doing.
+- **Cursor signs in through your browser.** Signing in opens `cursor.com` and talks to `api2.cursor.sh` (login poll, token refresh, usage and plan info); local Cursor files (`%APPDATA%\Cursor`) are never read or touched.
 - **Everything it stores is encrypted** with Windows DPAPI for your Windows user. Your `gh` token is never copied.
 - **Updates are signed.** An installer is accepted only if its ECDSA signature matches the public key built into the app. Automatic install is off by default.
 - **AI assistants can only read** your usage, unless you allow account switching in Settings.
