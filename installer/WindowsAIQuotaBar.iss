@@ -3,7 +3,7 @@
 
 #define AppName "Windows AI Quota Bar"
 #ifndef AppVersion
-  #define AppVersion "0.5.1"
+  #define AppVersion "0.6.0"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\artifacts\WindowsAIQuotaBar"
