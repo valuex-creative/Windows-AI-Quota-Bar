@@ -36,7 +36,7 @@ public sealed class CursorProvider : IUsageProvider
             var refreshed = false;
             if ((string.IsNullOrEmpty(access) || IsExpiringSoon(access)) && !string.IsNullOrEmpty(refresh))
             {
-                (access, refresh) = await RefreshAsync(refresh, ct);
+                (access, refresh) = await RefreshAsync(access, refresh, ct);
                 refreshed = true;
             }
             if (string.IsNullOrEmpty(access))
@@ -52,12 +52,10 @@ public sealed class CursorProvider : IUsageProvider
                 }
                 catch (Http.HttpError e) when (e.Code is 401 or 403)
                 {
+                    // Keep the stored login: a 401/403 here can be temporary. Only a rejected refresh token signs out.
                     if (refreshed || string.IsNullOrEmpty(refresh))
-                    {
-                        SignOut();
                         return new[] { Fail(ProviderStatus.NeedsLogin, "Cursor session expired. Sign in again from QuotaBar.") };
-                    }
-                    (access, refresh) = await RefreshAsync(refresh, ct);
+                    (access, refresh) = await RefreshAsync(access, refresh, ct);
                     refreshed = true;
                 }
             }
@@ -169,8 +167,17 @@ public sealed class CursorProvider : IUsageProvider
         Jwt.Payload(accessToken)?.Num("exp") is { } exp
         && DateTimeOffset.FromUnixTimeSeconds((long)exp) <= DateTimeOffset.UtcNow.AddMinutes(5);
 
-    static async Task<(string access, string? refresh)> RefreshAsync(string refreshToken, CancellationToken ct)
+    /// <summary>Refreshes under a lock shared with qb.exe, so two processes never spend the same refresh token.</summary>
+    static async Task<(string access, string? refresh)> RefreshAsync(string? seenAccess, string refreshToken, CancellationToken ct)
     {
+        await using var _ = await TokenFile.LockAsync("secret:" + TokenSecret, ct);
+
+        // The other process may have refreshed while we waited for the lock: use its tokens.
+        var (storedAccess, storedRefresh) = LoadTokens();
+        if (!string.IsNullOrEmpty(storedAccess) && storedAccess != seenAccess && !IsExpiringSoon(storedAccess))
+            return (storedAccess, storedRefresh);
+        if (!string.IsNullOrEmpty(storedRefresh)) refreshToken = storedRefresh;
+
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBase}/oauth/token")
         {
             Content = JsonContent.Create(new
